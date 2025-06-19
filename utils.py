@@ -16,3 +16,7 @@ def getUniqueName(filename: str, directory: str) -> str:
     while os.path.exists(path + str(counter) + ".md"):
         counter += 1
     return filename + str(counter) + ".md"
+
+def removeNewLine(s: str) -> str:
+    if s[0] == "\n": return s[1:]
+    else: return s

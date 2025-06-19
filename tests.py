@@ -15,10 +15,10 @@ def test(func):
 def test1():
     os.system("python main.py init")
     os.system("python main.py start")
-    os.system("python main.py yo")
-    os.system("python main.py this")
-    os.system("python main.py is")
-    os.system("python main.py rad")
+    os.system("python main.py add yo")
+    os.system("python main.py add this")
+    os.system("python main.py add is")
+    os.system("python main.py add rad")
     os.system("python main.py end")
     return 0 if os.path.exists(f"{os.getcwd()}\\.devlog\\Sessions\\Session0.md") else 1
 
