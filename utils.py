@@ -7,15 +7,15 @@ def toMarkdown(fileStr: str) -> str:
     return fileStr
 
 
-def getUniqueName(filename: str, directory: str) -> str:
+def getUniqueName(filename: str, directory: str, extension: str) -> str:
     counter = 0
     path = directory + filename
-    if not os.path.exists(path + str(counter) + ".md"):
-        return filename + str(counter) + ".md"
+    if not os.path.exists(path + str(counter) + extension):
+        return filename + str(counter) + extension
 
-    while os.path.exists(path + str(counter) + ".md"):
+    while os.path.exists(path + str(counter) + extension):
         counter += 1
-    return filename + str(counter) + ".md"
+    return filename + str(counter) + extension
 
 def removeNewLine(s: str) -> str:
     if s[0] == "\n": return s[1:]
