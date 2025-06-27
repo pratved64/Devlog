@@ -1,13 +1,13 @@
 import sys
 import json
 from datetime import datetime
-import argparse
 from utils import *
-
+import exporter
 
 default_config = {
-    "ExportFormat": ".md"
+    "ExportFormat": ".html"
 }
+
 
 # init
 def init():
@@ -50,8 +50,7 @@ def start():
 # end
 def end():
     cwd = os.getcwd()
-    mdstring = ""
-    with open(cwd + "\\.devlog\\session.json", 'r') as j:
+    with open(f"{cwd}\\.devlog\\session.json", 'r') as j:
         session = json.load(j)
 
     with open(session['logfile'], 'r') as logfile:
@@ -68,20 +67,20 @@ def end():
     startStamp = session["start"][:-7]
     endStamp = datetime.now().__str__()[:-7]
 
-    mdstring += f'\nStart: <code>{startStamp}</code>\nEnd: <code>{endStamp}</code>\n'
-    mdstring += f'\nEntries: <code>{len(logs) - taggedEntries} </code>\n~~~\n'
-    mdstring += "".join(list(map(lambda x: x + "\n", logs)))
-    mdstring += "~~~"
-    print("Session ended!")
-
     newFilePath = cwd + "\\.devlog\\Sessions\\"
-    filename = getUniqueName("Session", newFilePath)
-    newFilePath += filename
-    with open(newFilePath, "x+") as markdownFile:
-        markdownFile.write(toMarkdown(mdstring))
+    filename = getUniqueName("Session", newFilePath, default_config['ExportFormat'])
 
+    exp = exporter.ExportData(start=startStamp, end=endStamp, name=filename, content=logs, tagged=taggedEntries)
+
+    match default_config["ExportFormat"]:
+        case ".html":
+            exp.html(newFilePath)
+        case ".md":
+            exp.markdown(newFilePath)
+
+    print("Session file exported to:", newFilePath+filename)
     os.remove(session['logfile'])
-    os.remove(f"{os.getcwd()}\\.devlog\\session.json")
+    os.remove(f"{cwd}\\.devlog\\session.json")
 
 
 # add
@@ -107,13 +106,43 @@ def add(args: list[str]):
             taggedEntries += 1 if "@" in l else 0
 
         line = len(lines) - taggedEntries
-        print(lines)
 
     with open(session['logfile'], 'w') as logfile:
         lines = [x for x in lines if x != "\n"]
         newLine = f"{tag}\n{line}\t{inputStr}\n"
-        lines.append(removeNewLine(newLine)) # [1:] because \n was being added automatically!
+        lines.append(removeNewLine(newLine))  # [1:] because \n was being added automatically!
         logfile.writelines(lines)
+
+
+# config
+def config(args: list[str]):
+    cwd = os.getcwd()
+    with open(f"{cwd}\\.devlog\\config.json", "r") as c:
+        cf = json.load(c)
+
+    if not args:
+        print("Config:", cf)
+        return
+
+    found = False
+    for i, arg in enumerate(args):
+        if arg in cf:
+            found = True
+            cf[arg] = args[i + 1]
+
+    if not found: print("No such argument exists!")
+
+    with open(f"{cwd}\\.devlog\\config.json", "w") as c:
+        json.dump(cf, c)
+
+
+# status
+def status():
+    if os.path.exists(f"{os.getcwd()}\\.devlog\\session.json"):
+        print("Session in progress. End current session with \"devlog end\"")
+        return
+    else:
+        print("No session is active. Begin a new session with \"devlog start\"")
 
 
 if __name__ == "__main__":
@@ -126,6 +155,10 @@ if __name__ == "__main__":
             end()
         case "add":
             add(sys.argv[2:])
+        case "config":
+            config(sys.argv[2:])
+        case "status":
+            status()
 
 # 17-06-25: Finished MVP Setup with start end and add functionality.
 # 19-06-25: Added tag features, improved error handling
