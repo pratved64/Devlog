@@ -14,7 +14,9 @@ from utils import *
 from datetime import datetime
 
 default_config = {
-    "ExportFormat": ".html"
+    "exportFormat": ".html",
+    "debug": True,  # REMOVE BEFORE SHIPPING TO PROD
+    "theme": "bw"
 }
 
 
@@ -57,6 +59,7 @@ def start():
         "logfile": cwd + "\\.devlog\\log.tmp",
         "branch": utils.getGitBranch(cwd)
     }
+
     with open(session_path, "w") as f:
         json.dump(session, f)
 
@@ -79,6 +82,9 @@ def end():
     with open(session['logfile'], 'r') as logfile:
         logs = logfile.readlines()
 
+    with open(f"{cwd}\\.devlog\\config.json", 'r') as cf:
+        config_data = json.load(cf)
+
     logs = list(map(lambda x: x.replace("\n", ""), logs))
     logs = [e for e in logs if e != ""]
 
@@ -91,18 +97,23 @@ def end():
     endStamp = datetime.now().__str__()[:-7]
 
     newFilePath = cwd + "\\.devlog\\Sessions\\"
-    filename = getUniqueName("Session", newFilePath, default_config['ExportFormat'])
+    filename = getUniqueName("Session", newFilePath, config_data['exportFormat'])
+
+    dbg = True if config_data['debug'].lower() == "True" else False  # because the json parses it as a string
 
     exp = exporter.ExportData(start=startStamp, end=endStamp, name=filename, content=logs, tagged=taggedEntries,
-                              branch=session["branch"])
+                              branch=session["branch"], debug=dbg, theme=config_data['theme'])
 
-    match default_config["ExportFormat"]:
+    match config_data["exportFormat"]:
         case ".html":
-            exp.html(newFilePath)
+            res = exp.html(newFilePath)
         case ".md":
-            exp.markdown(newFilePath)
+            res = exp.markdown(newFilePath)
+        case _:
+            res = -1
 
-    print("Session file exported to:", newFilePath + filename)
+    if res == 0:
+        print("Session file exported to:", newFilePath + filename)
     os.remove(session['logfile'])
     os.remove(f"{cwd}\\.devlog\\session.json")
 
@@ -135,9 +146,10 @@ def add(args: list[str]):
 
         line = len(lines) - taggedEntries
 
+    nowStamp = datetime.now().strftime("%H:%M:%S")
     with open(session['logfile'], 'w') as logfile:
         lines = [x for x in lines if x != "\n"]
-        newLine = f"{tag}\n{line}\t{inputStr}\n"
+        newLine = f"{tag}\n{line}\t{inputStr}\t{nowStamp}\n"
         lines.append(removeNewLine(newLine))
         logfile.writelines(lines)
 
@@ -160,6 +172,7 @@ def config(args: list[str]):
         if arg in cf:
             found = True
             cf[arg] = args[i + 1]
+            print(f"Changed {arg} to {args[i + 1]}")
 
     if not found: print("No such argument exists!")
 
@@ -235,6 +248,22 @@ def help(args: list[str]):
         print("Unknown command. Use \"devlog help\" to see a list of valid commands")
 
 
+# quick
+def quick_test():
+    i = 0
+    p = f"{cwd}\\.devlog\\Sessions\\Session{i}.html"
+    while os.path.exists(p):
+        os.remove(p)
+        i += 1
+        p = f"{cwd}\\.devlog\\Sessions\\Session{i}.html"
+
+    start()
+    config(["debug", "False"])
+    add(["Hello", "-t", "TODO"])
+    add(["Hi there!"])
+    end()
+
+
 command_args = {
     "init": init,
     "start": start,
@@ -244,7 +273,8 @@ command_args = {
     "status": status,
     "delete": delete,
     "remove": remove,
-    "help": help
+    "help": help,
+    "quick": quick_test
 }
 
 if __name__ == "__main__":
@@ -255,3 +285,5 @@ if __name__ == "__main__":
             command_args[command](sys.argv[2:])
         except TypeError as e:
             command_args[command]()
+    else:
+        print("Unknown command. Use \"devlog help\" to see a list of valid commands")
