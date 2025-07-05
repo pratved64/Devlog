@@ -13,9 +13,9 @@ class ExportData:
             if tagged < 0: def_vals.append("tagged")
             if branch == "": def_vals.append("branch")
             if theme == "": def_vals.append("theme")
-
-            print("Warning: The following values have not been initialized:")
-            print("\n".join(def_vals))
+            if not def_vals:
+                print("Warning: The following values have not been initialized:")
+                print("\n".join(def_vals))
 
         self.startStamp = start
         self.endStamp = end

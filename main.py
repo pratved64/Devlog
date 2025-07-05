@@ -4,19 +4,20 @@
 # 01-07-25: Improved html export with f-string, implemented help, remove and delete commands
 # TODO: Improve error checking, Improve html styling
 # IMP: !Refactor spaghetti code from 19-06 (tag feature)!
-
-
 import sys
 import json
+
+import errors
 import utils
 import exporter
+
 from utils import *
 from datetime import datetime
 
 default_config = {
     "exportFormat": ".html",
     "debug": True,  # REMOVE BEFORE SHIPPING TO PROD
-    "theme": "bw"
+    "theme": "light"
 }
 
 
@@ -35,6 +36,9 @@ def init():
     os.mkdir("./.devlog")
     os.chdir("./.devlog")
     os.mkdir("Sessions")
+    os.chdir("Sessions")
+    os.mkdir("Exported")
+    os.mkdir(".txt")
     with open(f"{cwd}\\.devlog\\config.json", "w") as c:
         json.dump(default_config, c)
 
@@ -76,6 +80,9 @@ def end():
     end: Ends the current session and exports to configured file format.
     Arguments: None
     """
+    if not os.path.exists(f"{cwd}\\.devlog\\session.json"):
+        raise errors.CommandError("No session in progress! Start a new session with \"devlog start\".")
+
     with open(f"{cwd}\\.devlog\\session.json", 'r') as j:
         session = json.load(j)
 
@@ -96,13 +103,12 @@ def end():
     startStamp = session["start"][:-7]
     endStamp = datetime.now().__str__()[:-7]
 
-    newFilePath = cwd + "\\.devlog\\Sessions\\"
+    newFilePath = cwd + "\\.devlog\\Sessions\\Exported\\"
+    txtPath = cwd + "\\.devlog\\Sessions\\.txt\\"
     filename = getUniqueName("Session", newFilePath, config_data['exportFormat'])
 
-    dbg = True if config_data['debug'].lower() == "True" else False  # because the json parses it as a string
-
     exp = exporter.ExportData(start=startStamp, end=endStamp, name=filename, content=logs, tagged=taggedEntries,
-                              branch=session["branch"], debug=dbg, theme=config_data['theme'])
+                              branch=session["branch"], theme=config_data['theme'])
 
     match config_data["exportFormat"]:
         case ".html":
@@ -111,6 +117,10 @@ def end():
             res = exp.markdown(newFilePath)
         case _:
             res = -1
+
+    # write to txt for grep
+    with open(txtPath + getUniqueName("Session", txtPath, ".txt"), "w") as t:
+        t.writelines("\n".join(logs))
 
     if res == 0:
         print("Session file exported to:", newFilePath + filename)
@@ -190,12 +200,25 @@ def status():
         with open(f"{cwd}\\.devlog\\session.json", 'r') as s:
             session = json.load(s)
         print("Session in progress. End current session with \"devlog end\"")
-        print(session)
+        # implement better way to display current session
         return
     elif os.path.exists(f"{cwd}\\.devlog"):
         print("No session is active. Begin a new session with \"devlog start\"")
     else:
         print("Devlog has not been initialized here! Use \"devlog init\" to get started.")
+
+
+# clear
+def clear():
+    os.chdir(f"{cwd}\\.devlog\\Sessions\\.txt\\")
+    for fname in os.listdir("."):
+        if os.path.isfile(fname):
+            os.remove(f".\\{fname}")
+
+    os.chdir(f"{cwd}\\.devlog\\Sessions\\Exported\\")
+    for fname in os.listdir("."):
+        if os.path.isfile(fname):
+            os.remove(f".\\{fname}")
 
 
 # remove
@@ -264,6 +287,41 @@ def quick_test():
     end()
 
 
+# grep
+def grep(args: list[str]):
+    """
+    grep: Searches for specified item in Devlog sessions.
+    Arguments: <Item> (-w / --where: [current, past, all])
+    """
+    item = args[0]  # what we are searching for
+    search_loc = "all"
+    for index, arg in enumerate(args[1:]):
+        if arg == "-w" or arg == "--where":
+            match args[index + 2]:
+                case "c":
+                    search_loc = "current"
+                case "current":
+                    search_loc = "current"
+                case "p":
+                    search_loc = "past"
+                case "past":
+                    search_loc = "past"
+                case _:
+                    print("Please specify valid location or argument blank!")  # IMPLEMENT CUSTOM ERROR FOR THIS
+
+    print(f"Looking for {item} in {search_loc}")
+
+    match search_loc:
+        case "all":
+            utils.search_current(cwd, item)
+            utils.search_prev(cwd, item)
+        case "past":
+            utils.search_prev(cwd, item)
+        case "current":
+            utils.search_current(cwd, item)
+
+
+
 command_args = {
     "init": init,
     "start": start,
@@ -274,16 +332,25 @@ command_args = {
     "delete": delete,
     "remove": remove,
     "help": help,
-    "quick": quick_test
+    "quick": quick_test,
+    "grep": grep,
+    "clear": clear,
 }
 
 if __name__ == "__main__":
     cwd = os.getcwd()
+
     command = sys.argv[1]
-    if command in command_args:
-        try:
-            command_args[command](sys.argv[2:])
-        except TypeError as e:
-            command_args[command]()
-    else:
-        print("Unknown command. Use \"devlog help\" to see a list of valid commands")
+    try:
+        if command in command_args:
+            params = command_args[command].__code__.co_varnames[:command_args[command].__code__.co_argcount]
+            if not params:
+                command_args[command]()
+            else:
+                command_args[command](sys.argv[2:])
+        else:
+            print("Unknown command. Use \"devlog help\" to see a list of valid commands")
+    except errors.DevlogError as e:
+        print(e)
+
+

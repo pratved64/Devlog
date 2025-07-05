@@ -18,9 +18,12 @@ def getUniqueName(filename: str, directory: str, extension: str) -> str:
         counter += 1
     return filename + str(counter) + extension
 
+
 def removeNewLine(s: str) -> str:
-    if s[0] == "\n": return s[1:]
-    else: return s
+    if s[0] == "\n":
+        return s[1:]
+    else:
+        return s
 
 
 def getGitBranch(cwd: str) -> str:
@@ -41,6 +44,35 @@ def getGitBranch(cwd: str) -> str:
             branch = data.split()[i + 1]
 
     return branch
+
+
+def search_current(cwd: str, item: str):
+    print("\nCurrent Session:")
+    if not os.path.exists(f"{cwd}\\.devlog\\session.json"):
+        print("No session is active. Cannot parse.\n")
+        return
+
+    with open(f"{cwd}\\.devlog\\log.tmp", "r") as c:
+        current = c.readlines()
+
+    for line in current:
+        if item in line:
+            print(line.rstrip())
+
+
+def search_prev(cwd: str, item: str):
+    print("\nPrevious Sessions:")
+    for filename in os.listdir(f"{cwd}\\.devlog\\Sessions\\.txt\\"):
+        p = f"{cwd}\\.devlog\\Sessions\\.txt\\{filename}"
+        with open(p, 'r') as f:
+            content = f.readlines()
+
+        for line in content:
+            # print(line)
+            if item in line:
+                l = f"{filename}\n{line.rstrip()}"
+                print(l)
+
 
 if __name__ == "__main__":
     cwd = os.getcwd()
