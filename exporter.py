@@ -124,7 +124,7 @@ class ExportData:
 </body>
 </html>"""  # Template String for html export
 
-        with open(export_path + f"\\{self.name}", "w") as f:
+        with open(export_path + self.name.replace(":", "-"), "w") as f:
             f.write(main)
         return 0
 

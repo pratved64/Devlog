@@ -36,7 +36,7 @@ def getGitBranch(cwd: str) -> str:
         data = result.stdout
     except subprocess.CalledProcessError as e:
         data = ""
-        print(e)
+        # print(e)
 
     branch = "NONE FOUND"
     for i, word in enumerate(data.split()):
@@ -52,26 +52,37 @@ def search_current(cwd: str, item: str):
         print("No session is active. Cannot parse.\n")
         return
 
+    if "@" in item:
+        tag = True
+    else:
+        tag = False
+
     with open(f"{cwd}\\.devlog\\log.tmp", "r") as c:
         current = c.readlines()
 
-    for line in current:
+    for i, line in enumerate(current):
         if item in line:
             print(line.rstrip())
+            if tag: print(current[i + 1])
 
 
 def search_prev(cwd: str, item: str):
     print("\nPrevious Sessions:")
+    if "@" in item:
+        tag = True
+    else:
+        tag = False
     for filename in os.listdir(f"{cwd}\\.devlog\\Sessions\\.txt\\"):
         p = f"{cwd}\\.devlog\\Sessions\\.txt\\{filename}"
         with open(p, 'r') as f:
             content = f.readlines()
 
-        for line in content:
+        for i, line in enumerate(content):
             # print(line)
             if item in line:
                 l = f"{filename}\n{line.rstrip()}"
                 print(l)
+                if tag: print(content[i + 2])
 
 
 if __name__ == "__main__":

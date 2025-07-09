@@ -6,6 +6,7 @@
 # IMP: !Refactor spaghetti code from 19-06 (tag feature)!
 import sys
 import json
+import urllib.request, urllib.parse
 
 import errors
 import utils
@@ -19,6 +20,8 @@ default_config = {
     "debug": True,  # REMOVE BEFORE SHIPPING TO PROD
     "theme": "light"
 }
+
+URL = "http://localhost:8080"
 
 
 # init
@@ -57,11 +60,15 @@ def start():
         print("Session already started")
         return None
 
+    current_branch = utils.getGitBranch(cwd)
+    if current_branch == "NONE FOUND":
+        print("Warning: Git branch was not found in the current working directory")
+
     session = {
         "start": datetime.now().__str__(),
         "cwd": cwd,
         "logfile": cwd + "\\.devlog\\log.tmp",
-        "branch": utils.getGitBranch(cwd)
+        "branch": current_branch
     }
 
     with open(session_path, "w") as f:
@@ -92,6 +99,7 @@ def end():
     with open(f"{cwd}\\.devlog\\config.json", 'r') as cf:
         config_data = json.load(cf)
 
+    now = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     logs = list(map(lambda x: x.replace("\n", ""), logs))
     logs = [e for e in logs if e != ""]
 
@@ -101,13 +109,13 @@ def end():
             taggedEntries += 1
 
     startStamp = session["start"][:-7]
-    endStamp = datetime.now().__str__()[:-7]
+    endStamp = now.split()[1]
 
     newFilePath = cwd + "\\.devlog\\Sessions\\Exported\\"
     txtPath = cwd + "\\.devlog\\Sessions\\.txt\\"
-    filename = getUniqueName("Session", newFilePath, config_data['exportFormat'])
-
-    exp = exporter.ExportData(start=startStamp, end=endStamp, name=filename, content=logs, tagged=taggedEntries,
+    filename = now
+    exp = exporter.ExportData(start=startStamp, end=endStamp, name=(filename + config_data['exportFormat']),
+                              content=logs, tagged=taggedEntries,
                               branch=session["branch"], theme=config_data['theme'])
 
     match config_data["exportFormat"]:
@@ -119,11 +127,11 @@ def end():
             res = -1
 
     # write to txt for grep
-    with open(txtPath + getUniqueName("Session", txtPath, ".txt"), "w") as t:
+    with open(f"{txtPath}{filename.replace(":", "-")}.txt", "w") as t:
         t.writelines("\n".join(logs))
 
     if res == 0:
-        print("Session file exported to:", newFilePath + filename)
+        print("Session file exported to:", newFilePath + filename.replace(":", "-"))
     os.remove(session['logfile'])
     os.remove(f"{cwd}\\.devlog\\session.json")
 
@@ -174,15 +182,21 @@ def config(args: list[str]):
         cf = json.load(c)
 
     if not args:
-        print("Config:", cf)
+        print("\nConfig:")
+        for k, v in cf.items():
+            print(f"{k}: {v}")
+        print("\n")
         return
 
     found = False
     for i, arg in enumerate(args):
-        if arg in cf:
+        if arg in cf and i + 1 != len(args):
             found = True
             cf[arg] = args[i + 1]
             print(f"Changed {arg} to {args[i + 1]}")
+            break
+        elif i + 1 >= len(args):
+            raise errors.CommandError("Invalid usage. Place value after variable name.")
 
     if not found: print("No such argument exists!")
 
@@ -231,6 +245,8 @@ def remove():
         print("Devlog has not been initialized here. Nothing to remove.")
         return
 
+    choice = input("Are you sure you want to remove devlog? (y/n): ")
+    if choice.lower() != "y": return
     try:
         subprocess.run(['rmdir', '/s', '/q', f"{cwd}\\.devlog"], check=True, shell=True, text=True)
     except subprocess.CalledProcessError as e:
@@ -254,13 +270,13 @@ def delete():
 
 
 # help
-def help(args: list[str]):
+def dv_help(args: list[str]):
     """
     help: Displays valid commands. Displays further help for a specific command.
     Arguments: (Command)
     """
     if not args:
-        print(help.__doc__)
+        print(dv_help.__doc__)
         print("Commands:")
         print("\n".join(command_args.keys()))
         return
@@ -307,7 +323,7 @@ def grep(args: list[str]):
                 case "past":
                     search_loc = "past"
                 case _:
-                    print("Please specify valid location or argument blank!")  # IMPLEMENT CUSTOM ERROR FOR THIS
+                    raise errors.InvalidLocationError("Please specify a valid location or leave argument blank!")
 
     print(f"Looking for {item} in {search_loc}")
 
@@ -319,7 +335,16 @@ def grep(args: list[str]):
             utils.search_prev(cwd, item)
         case "current":
             utils.search_current(cwd, item)
+    print()  # for newline
 
+
+# ai summary
+def summarise(args: list[str]):
+    # Args: --file "filename" or --range "date1" "date2"
+    # Collect and format logs
+    # POST request to some URL to get summary
+    # POST should include system prompt as well as FORMATTED LOGS
+    pass
 
 
 command_args = {
@@ -331,7 +356,7 @@ command_args = {
     "status": status,
     "delete": delete,
     "remove": remove,
-    "help": help,
+    "help": dv_help,
     "quick": quick_test,
     "grep": grep,
     "clear": clear,
@@ -352,5 +377,3 @@ if __name__ == "__main__":
             print("Unknown command. Use \"devlog help\" to see a list of valid commands")
     except errors.DevlogError as e:
         print(e)
-
-
