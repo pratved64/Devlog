@@ -18,7 +18,8 @@ from datetime import datetime
 default_config = {
     "exportFormat": ".html",
     "debug": True,  # REMOVE BEFORE SHIPPING TO PROD
-    "theme": "light"
+    "theme": "light",
+    "summaryTags": ["TODO", "FIXME", "BUG", "REF"]
 }
 
 URL = "http://localhost:8080"
@@ -339,12 +340,36 @@ def grep(args: list[str]):
 
 
 # ai summary
-def summarise(args: list[str]):
+def ai_summarise(args: list[str]):
     # Args: --file "filename" or --range "date1" "date2"
     # Collect and format logs
     # POST request to some URL to get summary
     # POST should include system prompt as well as FORMATTED LOGS
     pass
+
+
+# summary
+def summarise(args: list[str]):
+    # add summaryTag checking functionality and implement proper summary
+    # refactor camelCase to snake_case
+    with open(f"{cwd}\\.devlog\\config.json", "r") as cf:
+        config_data = json.load(cf)
+
+    filepaths = []
+    for i, arg in enumerate(args):
+        if arg == "-f" or arg == "--file":
+            filepaths.append(args[i + 1])
+            break
+        elif arg == "-r" or arg == "--range":
+            start_date = args[i + 1]
+            end_date = args[i + 2]
+            filepaths = utils.getFilesInRange(start_date, end_date, cwd)
+            break
+
+    for f in filepaths:
+        with open(f, "r") as data:
+            content = data.readlines()
+        utils.summariseFile(content, config_data["summaryTags"])
 
 
 command_args = {
@@ -360,6 +385,7 @@ command_args = {
     "quick": quick_test,
     "grep": grep,
     "clear": clear,
+    "summary": summarise,
 }
 
 if __name__ == "__main__":

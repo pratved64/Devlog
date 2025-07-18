@@ -1,5 +1,6 @@
 import os.path
 import errors
+import sys
 
 
 class ExportData:
@@ -145,7 +146,8 @@ class ExportData:
         return 0
 
     def get_theme(self) -> str:
-        script_path = os.path.dirname(os.path.abspath(__file__))
+        script_path = self._get_base_path()
+        print(script_path)
         theme = []
         if not os.path.exists(f"{script_path}\\Themes\\{self.theme}.cfg"):
             raise errors.ThemeNotFoundError("Could not find specified theme. Please check its path and try again.")
@@ -159,3 +161,8 @@ class ExportData:
             theme.append(var)
 
         return " ".join(theme)
+
+    def _get_base_path(self):
+        if getattr(sys, 'frozen', False):
+            return os.path.dirname(sys.executable)
+        return os.path.dirname(os.path.abspath(__file__))

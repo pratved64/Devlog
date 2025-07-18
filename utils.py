@@ -1,5 +1,6 @@
 import os
 import subprocess
+import datetime
 
 
 def toMarkdown(fileStr: str) -> str:
@@ -83,6 +84,32 @@ def search_prev(cwd: str, item: str):
                 l = f"{filename}\n{line.rstrip()}"
                 print(l)
                 if tag: print(content[i + 2])
+
+
+def getFilesInRange(start, end, cwd):
+    _start = datetime.datetime.strptime(start, "%Y-%m-%d")
+    _end = datetime.datetime.strptime(end, "%Y-%m-%d")
+    folder_path = f"{cwd}\\.devlog\\Sessions\\.txt\\"
+
+    files = []
+
+    for file in os.listdir(folder_path):
+        fp = os.path.join(folder_path, file)
+        if os.path.isfile(fp):
+            last_write = datetime.datetime.fromtimestamp(os.path.getmtime(fp))
+            if _start <= last_write < _end:
+                files.append(fp)
+
+    return files
+
+
+def summariseFile(content, tags):
+    for i, line in enumerate(content):
+        if "@" in line:
+            l = line.replace("@", " ").rstrip().strip()
+            if l in tags:
+                print(f"{content[i + 1].strip()}\t{l}")
+
 
 
 if __name__ == "__main__":
